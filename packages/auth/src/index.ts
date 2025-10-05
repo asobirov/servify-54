@@ -6,15 +6,35 @@ import { oAuthProxy } from "better-auth/plugins";
 
 import { db } from "@acme/db/client";
 
+
 export function initAuth(options: {
   baseUrl: string;
   productionUrl: string;
   secret: string | undefined;
 
-  discordClientId: string;
-  discordClientSecret: string;
+  providers: {
+    discord: {
+      enabled?: boolean;
+      clientId: string;
+      clientSecret: string;
+    };
+    apple: {
+      enabled?: boolean;
+      clientId: string;
+      clientSecret: string;
+      appBundleIdentifier: string;
+    };
+    google: {
+      enabled?: boolean;
+      clientId: string;
+      clientSecret: string;
+    };
+  }
 }) {
+  const { providers } = options;
+
   const config = {
+    appName: "Servify",
     database: drizzleAdapter(db, {
       provider: "pg",
     }),
@@ -32,12 +52,37 @@ export function initAuth(options: {
     ],
     socialProviders: {
       discord: {
-        clientId: options.discordClientId,
-        clientSecret: options.discordClientSecret,
+        enabled: providers.discord.enabled,
+        clientId: providers.discord.clientId,
+        clientSecret: providers.discord.clientSecret,
         redirectURI: `${options.productionUrl}/api/auth/callback/discord`,
       },
+      apple: {
+        enabled: providers.apple.enabled,
+  
+        clientId: providers.apple.clientId,
+        clientSecret: providers.apple.clientSecret,
+        appBundleIdentifier: providers.apple.appBundleIdentifier,
+        scope: ["email", "name"],
+      },
+      google: {
+        enabled: providers.google.enabled,
+  
+        prompt: "select_account",
+        clientId: providers.google.clientId,
+        clientSecret: providers.google.clientSecret,
+        redirectURI: `${options.productionUrl}/api/auth/callback/google`,
+      },
     },
-    trustedOrigins: ["expo://"],
+
+    account: {
+      accountLinking: {
+        enabled: true,
+        allowDifferentEmails: true,
+      },
+    },
+
+    trustedOrigins: [options.productionUrl, "servify://", "https://appleid.apple.com"],
   } satisfies BetterAuthOptions;
 
   return betterAuth(config);
